@@ -1,54 +1,85 @@
-# Kubernetes Failure Prediction & Auto-Remediation System
+# Kubernetes Cluster Health Monitoring System
 
-## 📦 Complete Setup Guide
+## System Overview
+A comprehensive monitoring solution that collects Kubernetes cluster metrics, detects anomalies, and prepares for automated remediation (Phase 2). The system currently tracks:
 
-### 1. Prerequisites Installation
+- CPU/Memory utilization
+- Network latency
+- Pod health status
+- Resource allocation
+
+## Key Components
+
+### 1. Core Infrastructure
+- **Docker Container**: Pre-configured monitoring environment
+- **Prometheus**: Metrics collection and storage
+- **Kubernetes Operators**: Stress test deployments
+- **Python Data Pipeline**: Metric processing and storage
+
+### 2. Current Capabilities (Phase 1)
+- Real-time metric collection from cluster nodes
+- Automated CSV dataset generation
+- Basic threshold-based alerting
+- Stress test integration (CPU/Memory workloads)
+
+### 3. Setup Guide
+1. **Prerequisites**: Docker, Kubernetes, and Helm installed
+2. **Deployment**:
+   - Build monitoring container: `docker build -t k8s-monitor:1.0 .`
+   - Launch Prometheus with provided Helm chart
+   - Apply Kubernetes manifests from `/kubernetes` directory
+
+### 4. Data Flow
+## Exactly How It Works
+
+### Data Collection Process
+1. **Every 15 Seconds**:
+   - Prometheus gathers metrics from:
+     - Node resources (CPU/memory)
+     - Pod status
+     - Network activity
+
+2. **Data Cleaning**:
+   - Python scripts remove empty/unusable data
+   - Convert timestamps to readable format
+   - Label metrics with node/pod names
+
+3. **Storage**:
+   - Creates organized CSV files:
+     ```
+     datasets/
+     ├── cpu_metrics.csv
+     ├── memory_metrics.csv  
+     └── network_metrics.csv
+     ```
+
+### Files  Created
+| File | Purpose | Location |
+|------|---------|----------|
+| `monitor.py` | Main data collector | `scripts/` |
+| `prometheus.yml` | Metrics rules | `kubernetes/` | 
+| `stress-test.yaml` | Test workloads | `kubernetes/` |
+
+## Phase 2 Roadmap
+- Pod Failures → Deletes 50% of running pods.
+- Node Failures → Randomly drains Kubernetes nodes.
+- Kubelet Kill → Crashes node Kubelet process.
+- DNS Failures → Breaks internal networking.
+- DDoS Simulation → Sends 1500 fake requests per second.
+- Disk Stress → High I/O load & 30% disk corruption.
+- Clock Skew → Modifies system time by +15 minutes.
+- Random Reboots → Introduces unexpected node crashe
+
+-MACHINE LEARNING:(remaning part of phase 1 )
+ - Autoencoder → Detects anomalies in pod resource usage.
+ - Graph Neural Networks (GNNs) → Models relationships between pods, nodes, and failures.
+ - Explainable AI (SHAP/LIME) → Explains why the failure happened.
+ - Visualizations → Time-series failure trends + Cluster-wide dependency graph.
+
+## Usage
 ```bash
-# Install Docker, kubectl, and Helm
-curl -fsSL https://get.docker.com | sh
-sudo apt-get install -y kubectl helm
+# Start the monitoring pipeline
+python3 scripts/start_monitoring.py
 
-# Clone repository
-git clone https://github.com/yourusername/kubernetes-monitoring.git
-cd kubernetes-monitoring
-
-# Create folder structure
-mkdir -p {docker,kubernetes,scripts,datasets}
-
-#docker setup
-# docker/Dockerfile
-FROM python:3.9-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["python", "monitor.py"]
-docker build -t k8s-monitor:1.0 -f docker/Dockerfile .
-docker run -d k8s-monitor:1.0
-
-# run the cluster 
-kubectl apply -f kubernetes/deployment.yaml
-
-#set up prometheus connection
-# kubernetes/prometheus-values.yaml
-server:
-  persistentVolume:
-    enabled: true
-alertmanager:
-  enabled: true
-
-#collect the data from pormetheus and store it in csv fromat 
-# scripts/collect.py
-import requests
-import pandas as pd
-
-PROM_URL = "http://prometheus:9090"
-METRICS = [
-    'container_cpu_usage_seconds_total',
-    'container_memory_usage_bytes'
-]
-
-def fetch_metrics():
-    for metric in METRICS:
-        response = requests.get(f"{PROM_URL}/api/v1/query?query={metric}")
-        pd.DataFrame(response.json()).to_csv(f"datasets/{metric}.csv")
+# View collected metrics
+ls -lh datasets/
